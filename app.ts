@@ -18,6 +18,7 @@ async function startServer() {
       if (action === 'subscribe') {
         const quoteService: QuoteService = await Container.get(QuoteService);
         const result = await quoteService.subscribe(exchange, base, quote);
+        
         ws.on('close', () => {
           console.log("Disconnected!")
         });

@@ -8,9 +8,12 @@ export class QuoteService {
   constructor(
     @Inject("KrakenProvider")
     private krakenProvider: IQuoteProvider,
+    @Inject("BitgetProvider")
+    private bitgetProvider: IQuoteProvider,
   ) {
     this.quoteProviders = {
-      "kraken": krakenProvider
+      "kraken": krakenProvider,
+      "bitget": bitgetProvider
     }
   }
 
@@ -20,7 +23,6 @@ export class QuoteService {
       const clientId = `${exchange}-${symbol}`;
       const providerSelected: IQuoteProvider = this.quoteProviders[exchange];
       providerSelected.subscribe(base, quote)
-      console.log("Client Subscribed")
       return clientId;
     } catch (e) {
       console.error((e as Error).message);
