@@ -11,10 +11,14 @@
   "author": "Franco Perez",
   "license": "ISC",
   "dependencies": {
+    "pino-pretty": "^11.2.1",
+    "reflect-metadata": "^0.2.2",
+    "typedi": "^0.10.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.12",
+    "@types/pino": "^7.0.5",
     "@types/ws": "^8.5.11",
     "nodemon": "^3.1.4",
     "ts-node": "^10.9.2",
