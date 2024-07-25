@@ -3,6 +3,8 @@ import WebSocket from 'ws';
 
 const SUBSCRIBE_FUNCTION = 'subscribe';
 const KRAKEN_NAME = 'KRAKEN';
+const INTERVAL_MS = 5000;
+const MARKET_DEPTH = 10;
 export class KrakenProvider implements IQuoteProvider {
 
   private krakenWs: WebSocket | null = null;
@@ -18,28 +20,21 @@ export class KrakenProvider implements IQuoteProvider {
     }
   }
 
-  subscribe(base: string, quote: string): any {
+  subscribe(base: string, quote: string, callback: (update: any) => void): any {
     console.log('Subscribed to Kraken', base, quote);
     this.krakenWs = new WebSocket('wss://ws.kraken.com');
 
     this.krakenWs.on('open', () => {
       const symbol = `${base}/${quote}`;
-      console.log('open');
-      this.krakenWs!.send(JSON.stringify({
-        event: SUBSCRIBE_FUNCTION,
-        pair: [symbol],
-        subscription: { name: 'book', depth: 10 }
-      }));
-
       this.intervalId = setInterval(() => {
         if (this.krakenWs!.readyState === WebSocket.OPEN) {
           this.krakenWs!.send(JSON.stringify({
             event: SUBSCRIBE_FUNCTION,
             pair: [symbol],
-            subscription: { name: 'book', depth: 10 }
+            subscription: { name: 'book', depth: MARKET_DEPTH }
           }));
         }
-      }, 5000);
+      }, INTERVAL_MS);
     });
 
     this.krakenWs.on('message', (data: string) => {
@@ -52,7 +47,7 @@ export class KrakenProvider implements IQuoteProvider {
           asks: message[1].as,
           timestamp: new Date().toISOString()
         };
-        console.log(update);
+        callback(update);
       }
     });
 

@@ -6,10 +6,16 @@ import setupProviders from "./providers";
 
 async function startServer() {
   const wsServer = new WebSocket.Server({ port: 81 });
+
+
   await setupProviders();
 
   wsServer.on('connection', (ws: WebSocket) => {
     console.log('New client connected');
+
+    const wsResponseWriter = (response: string) => {
+      ws.send(JSON.stringify(response));
+    }
 
     ws.on('message', async (message: string) => {
       const { action, exchange, base, quote } = JSON.parse(message);
@@ -17,7 +23,7 @@ async function startServer() {
       console.log({ action, exchange, base, quote })
       if (action === 'subscribe') {
         const quoteService: QuoteService = await Container.get(QuoteService);
-        const result = await quoteService.subscribe(exchange, base, quote);
+        const result = await quoteService.subscribe(exchange, base, quote, wsResponseWriter);
         
         ws.on('close', () => {
           console.log("Disconnected!")

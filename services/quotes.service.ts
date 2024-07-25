@@ -17,16 +17,16 @@ export class QuoteService {
     }
   }
 
-  async subscribe(exchange: string, base: string, quote: string ) {
+  async subscribe(exchange: string, base: string, quote: string, callback: (update: any) => void ): Promise<string> {
     try {
       const symbol = `${base}/${quote}`;
       const clientId = `${exchange}-${symbol}`;
       const providerSelected: IQuoteProvider = this.quoteProviders[exchange];
-      providerSelected.subscribe(base, quote)
+      providerSelected.subscribe(base, quote, callback)
       return clientId;
     } catch (e) {
       console.error((e as Error).message);
-      return false;
+      return (e as Error).message;
     }
   }
 }
