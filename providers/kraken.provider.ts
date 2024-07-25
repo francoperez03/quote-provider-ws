@@ -3,32 +3,35 @@ import WebSocket from 'ws';
 import Tree from "avl";
 import { getPairKey } from '../utils/subscription';
 
-const KRAKEN_URL = 'wss://ws.kraken.com';
+const EXCHANGE_URL = 'wss://ws.kraken.com';
+const ASKS_SUFFIX = '-asks'
+const BIDS_SUFFIX = '-bids'
+const SUBSCRIBE_EVENT = 'subscribe'
 export class KrakenProvider implements IQuoteProvider {
 
-  private krakenWs: WebSocket | null = null;
+  private wsClient: WebSocket | null = null;
   private orderBooksByPair = new Map();
 
   private cleanup() {
-    if (this.krakenWs) {
-      this.krakenWs.close();
-      this.krakenWs = null;
+    if (this.wsClient) {
+      this.wsClient.close();
+      this.wsClient = null;
     }
   }
 
   private sendRequest = (symbol: string) => {
-    this.krakenWs!.send(JSON.stringify({
-      event: 'subscribe',
+    this.wsClient!.send(JSON.stringify({
+      event: SUBSCRIBE_EVENT,
       pair: [symbol],
       subscription: { name: 'book', depth: 10 }
     }));
   }
 
   private createTree = (base: string, quote: string, data: any) => {
-    this.orderBooksByPair.set(getPairKey(base, quote) + "-asks", new Tree());
-    this.orderBooksByPair.set(getPairKey(base, quote) + "-bids", new Tree());
-    const askTree = this.orderBooksByPair.get(getPairKey(base, quote) + "-asks")
-    const bidTree = this.orderBooksByPair.get(getPairKey(base, quote) + "-bids")
+    this.orderBooksByPair.set(getPairKey(base, quote) + ASKS_SUFFIX, new Tree());
+    this.orderBooksByPair.set(getPairKey(base, quote) + BIDS_SUFFIX, new Tree());
+    const askTree = this.orderBooksByPair.get(getPairKey(base, quote) + ASKS_SUFFIX)
+    const bidTree = this.orderBooksByPair.get(getPairKey(base, quote) + BIDS_SUFFIX)
     const asks = data[1].as
     const bids = data[1].bs
     for (const askOrder of asks) {
@@ -44,7 +47,7 @@ export class KrakenProvider implements IQuoteProvider {
 
   private updateTree = (base: string, quote: string, data: any) => {
     if (data.a) { 
-      const askTree = this.orderBooksByPair.get(getPairKey(base, quote) + "-asks")
+      const askTree = this.orderBooksByPair.get(getPairKey(base, quote) + ASKS_SUFFIX)
       data.a.forEach((order: any) => {
         const [price, volume, timestamp] = order;
         if (parseFloat(volume) === 0) {
@@ -56,7 +59,7 @@ export class KrakenProvider implements IQuoteProvider {
       });
     }
     if (data.b) {
-      const bidTree = this.orderBooksByPair.get(getPairKey(base, quote) + "-bids")
+      const bidTree = this.orderBooksByPair.get(getPairKey(base, quote) + BIDS_SUFFIX)
       data.b.forEach((order: any) => {
         const [price, volume, timestamp] = order;
         if (parseFloat(volume) === 0) {
@@ -70,18 +73,18 @@ export class KrakenProvider implements IQuoteProvider {
   }
 
   subscribe(base: string, quote: string) {
-    if (this.krakenWs && this.krakenWs.readyState === WebSocket.OPEN) {
+    if (this.wsClient && this.wsClient.readyState === WebSocket.OPEN) {
       const symbol = `${base}/${quote}`;
       console.log({symbol})
     } else {
-      this.krakenWs = new WebSocket(KRAKEN_URL);
+      this.wsClient = new WebSocket(EXCHANGE_URL);
 
-      this.krakenWs.on('open', () => {
+      this.wsClient.on('open', () => {
         const symbol = `${base}/${quote}`;
         this.sendRequest(symbol);
       });
 
-      this.krakenWs.on('message', (data: string) => {
+      this.wsClient.on('message', (data: string) => {
         const dataParsed = JSON.parse(data.toString());
         if (Array.isArray(dataParsed) && dataParsed[1] && dataParsed[1].as) {
           this.createTree(base, quote, dataParsed)
@@ -90,12 +93,12 @@ export class KrakenProvider implements IQuoteProvider {
         }
       });
 
-      this.krakenWs.on('error', (error) => {
+      this.wsClient.on('error', (error) => {
         console.log('error', error);
         this.cleanup();
       });
 
-      this.krakenWs.on('close', () => {
+      this.wsClient.on('close', () => {
         console.log(`Disconnected from Kraken ${base}/${quote}`);
         this.cleanup();
       });
@@ -107,8 +110,8 @@ export class KrakenProvider implements IQuoteProvider {
     const asks: any[] = [];
     const bids: any[] = [];
 
-    const askTree = this.orderBooksByPair.get(getPairKey(base, quote) + "-asks")
-    const bidTree = this.orderBooksByPair.get(getPairKey(base, quote) + "-bids")
+    const askTree = this.orderBooksByPair.get(getPairKey(base, quote) + ASKS_SUFFIX)
+    const bidTree = this.orderBooksByPair.get(getPairKey(base, quote) + BIDS_SUFFIX)
     askTree.forEach((node: any) => {
       asks.push([node.key, node.data.volume]);
     });
