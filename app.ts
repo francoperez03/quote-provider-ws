@@ -4,32 +4,32 @@ import { Container } from "typedi";
 import { QuoteService } from "./services/quotes.service";
 import setupProviders from "./providers";
 
+const SUBSCRIBE_ACTION = 'subscribe'
+
 async function startServer() {
   const wsServer = new WebSocket.Server({ port: 81 });
-
-
   await setupProviders();
 
-  wsServer.on('connection', (ws: WebSocket) => {
+  wsServer.on('connection', (wsConnection: WebSocket) => {
     console.log('New client connected');
 
-    const wsResponseWriter = (response: string) => {
-      ws.send(JSON.stringify(response));
-    }
-
-    ws.on('message', async (message: string) => {
+    wsConnection.on('message', async (message: string) => {
       const { action, exchange, base, quote } = JSON.parse(message);
-      console.log('message received: ', message.toString())
-      console.log({ action, exchange, base, quote })
-      if (action === 'subscribe') {
-        const quoteService: QuoteService = await Container.get(QuoteService);
-        const result = await quoteService.subscribe(exchange, base, quote, wsResponseWriter);
+
+      if (action === SUBSCRIBE_ACTION) {
+        const quoteService: QuoteService = Container.get(QuoteService);
+        const result = await quoteService.subscribe(exchange, base, quote, wsConnection);
         
-        ws.on('close', () => {
-          console.log("Disconnected!")
-        });
-        return result
+        if (result) {
+          console.log(`[app.ts] Client subscribed to ${result}`);
+        } else {
+          wsConnection.send(JSON.stringify({ error: 'Subscription failed' }));
+        }
       }
+    });
+
+    wsConnection.on('close', () => {
+      console.log("Client disconnected!");
     });
   });
 

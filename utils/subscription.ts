@@ -1,0 +1,1 @@
+export const getSubscriptionKey = (exchange: string, base: string, quote: string) : string => (`${exchange}-${base}-${quote}`)
