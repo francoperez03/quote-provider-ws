@@ -19,6 +19,7 @@ export class BitgetProvider implements IQuoteProvider {
   }
 
   private sendRequest = (symbol: string) => {
+    console.log({SPOT_TYPE,symbol})
     this.wsClient!.send(JSON.stringify({
       op:"subscribe",
       args:[
@@ -42,6 +43,7 @@ export class BitgetProvider implements IQuoteProvider {
   private updateTree = (base: string, quote: string, data: any) => {
     const asks = data.data[0].asks;
     const bids = data.data[0].bids;
+    console.log({base})
     if (asks && asks.length > 0) { 
       const askTree = this.getOrCreateTree(base, quote, '-asks');
       asks.forEach((order: any) => {
@@ -69,33 +71,33 @@ export class BitgetProvider implements IQuoteProvider {
   }
 
   subscribe(base: string, quote: string) {
+    const symbol = `${base}${quote}`;
     if (this.wsClient && this.wsClient.readyState === WebSocket.OPEN) {
-      const symbol = `${base}/${quote}`;
-      console.log({symbol})
+      console.log(this.wsClient)
+      this.sendRequest(symbol);
     } else {
       this.wsClient = new WebSocket(EXCHANGE_URL);
-
-      this.wsClient.on('open', () => {
-        const symbol = `${base}${quote}`;
-        this.sendRequest(symbol);
-      });
-
-      this.wsClient.on('message', (data: string) => {
-        const dataParsed = JSON.parse(data.toString());
-        if(dataParsed.action === 'error') throw new Error;
-        if(dataParsed.action === 'snapshot') this.updateTree(base, quote, dataParsed);
-      });
-
-      this.wsClient.on('error', (error) => {
-        console.log('error', error);
-        this.cleanup();
-      });
-
-      this.wsClient.on('close', () => {
-        console.log(`Disconnected from Kraken ${base}/${quote}`);
-        this.cleanup();
-      });
     }
+
+    this.wsClient.on('open', () => {
+      this.sendRequest(symbol);
+    });
+
+    this.wsClient.on('message', (data: string) => {
+      const dataParsed = JSON.parse(data.toString());
+      if(dataParsed.action === 'error') throw new Error;
+      if(dataParsed.action === 'snapshot') this.updateTree(base, quote, dataParsed);
+    });
+
+    this.wsClient.on('error', (error) => {
+      console.log('error', error);
+      this.cleanup();
+    });
+
+    this.wsClient.on('close', () => {
+      console.log(`Disconnected from Kraken ${base}/${quote}`);
+      this.cleanup();
+    });
   }
 
   getQuote(base: string, quote: string, callback: (update: any) => void): void {
@@ -115,7 +117,7 @@ export class BitgetProvider implements IQuoteProvider {
       asks: asks.slice(0, 10)
     }
     console.log(result)
-    callback("result")
+    callback(result)
   }
 
 }
