@@ -1,9 +1,10 @@
 import { IQuoteProvider } from '../interfaces/quotes.interface';
 import WebSocket from 'ws';
 import Tree from "avl";
-import { getPairKey } from '../utils/subscription';
 
 const EXCHANGE_URL = 'wss://ws.bitget.com/v2/ws/public';
+const ASKS_SUFFIX = '-asks'
+const BIDS_SUFFIX = '-bids'
 const SPOT_TYPE = 'SPOT';
 const BOOK_DEPTH_15 ='books15';
 export class BitgetProvider implements IQuoteProvider {
@@ -18,8 +19,9 @@ export class BitgetProvider implements IQuoteProvider {
     }
   }
 
+  private baseQuoteToPair = (base: string, quote: string) => (`${base}${quote}`)
+
   private sendRequest = (symbol: string) => {
-    console.log({SPOT_TYPE,symbol})
     this.wsClient!.send(JSON.stringify({
       op:"subscribe",
       args:[
@@ -32,20 +34,20 @@ export class BitgetProvider implements IQuoteProvider {
   }));
   }
 
-  private getOrCreateTree(base: string, quote: string, treeType: string) {
-    const pairKey = getPairKey(base, quote) + `-${treeType}`
+  private getOrCreateTree(pair: string, treeType: string) {
+    const pairKey =`${pair}${treeType}`
     if (!this.orderBooksByPair.has(pairKey)) {
       this.orderBooksByPair.set(pairKey, new Tree());
     }
     return this.orderBooksByPair.get(pairKey);
   }
 
-  private updateTree = (base: string, quote: string, data: any) => {
+  private updateTree = (data: any) => {
     const asks = data.data[0].asks;
     const bids = data.data[0].bids;
-    console.log({base})
+    const pair = data.arg.instId
     if (asks && asks.length > 0) { 
-      const askTree = this.getOrCreateTree(base, quote, '-asks');
+      const askTree = this.getOrCreateTree(pair, ASKS_SUFFIX);
       asks.forEach((order: any) => {
         const [price, volume] = order;
         if (parseFloat(volume) === 0) {
@@ -57,7 +59,7 @@ export class BitgetProvider implements IQuoteProvider {
       });
     }
     if (bids && bids.length > 0) {
-      const bidTree = this.getOrCreateTree(base, quote, '-bids');
+      const bidTree = this.getOrCreateTree(pair, BIDS_SUFFIX);
       bids.forEach((order: any) => {
         const [price, volume] = order;
         if (parseFloat(volume) === 0) {
@@ -71,9 +73,8 @@ export class BitgetProvider implements IQuoteProvider {
   }
 
   subscribe(base: string, quote: string) {
-    const symbol = `${base}${quote}`;
+    const symbol = this.baseQuoteToPair(base, quote);
     if (this.wsClient && this.wsClient.readyState === WebSocket.OPEN) {
-      console.log(this.wsClient)
       this.sendRequest(symbol);
     } else {
       this.wsClient = new WebSocket(EXCHANGE_URL);
@@ -85,8 +86,11 @@ export class BitgetProvider implements IQuoteProvider {
 
     this.wsClient.on('message', (data: string) => {
       const dataParsed = JSON.parse(data.toString());
+
       if(dataParsed.action === 'error') throw new Error;
-      if(dataParsed.action === 'snapshot') this.updateTree(base, quote, dataParsed);
+      if(dataParsed.action === 'snapshot'){
+         this.updateTree(dataParsed);
+      }
     });
 
     this.wsClient.on('error', (error) => {
@@ -103,9 +107,10 @@ export class BitgetProvider implements IQuoteProvider {
   getQuote(base: string, quote: string, callback: (update: any) => void): void {
     const asks: any[] = [];
     const bids: any[] = [];
+    const pair = this.baseQuoteToPair(base, quote);
 
-    const askTree = this.getOrCreateTree(base, quote, "-asks")
-    const bidTree = this.getOrCreateTree(base, quote, "-bids")
+    const askTree = this.getOrCreateTree(pair, ASKS_SUFFIX)
+    const bidTree = this.getOrCreateTree(pair, BIDS_SUFFIX)
     askTree.forEach((node: any) => {
       asks.push([node.key, node.data.volume]);
     });
