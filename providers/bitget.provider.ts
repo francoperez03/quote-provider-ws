@@ -3,10 +3,13 @@ import WebSocket from 'ws';
 import Tree from "avl";
 
 const EXCHANGE_URL = 'wss://ws.bitget.com/v2/ws/public';
+const EXCHANGE_NAME = 'bitget';
 const ASKS_SUFFIX = '-asks'
 const BIDS_SUFFIX = '-bids'
 const SPOT_TYPE = 'SPOT';
 const BOOK_DEPTH_15 ='books15';
+const SUBSCRIBE_EVENT = 'subscribe';
+
 export class BitgetProvider implements IQuoteProvider {
 
   private wsClient: WebSocket | null = null;
@@ -23,7 +26,7 @@ export class BitgetProvider implements IQuoteProvider {
 
   private sendRequest = (symbol: string) => {
     this.wsClient!.send(JSON.stringify({
-      op:"subscribe",
+      op:SUBSCRIBE_EVENT,
       args:[
           {
               instType:SPOT_TYPE,
@@ -74,34 +77,39 @@ export class BitgetProvider implements IQuoteProvider {
 
   subscribe(base: string, quote: string) {
     const symbol = this.baseQuoteToPair(base, quote);
-    if (this.wsClient && this.wsClient.readyState === WebSocket.OPEN) {
-      this.sendRequest(symbol);
-    } else {
-      this.wsClient = new WebSocket(EXCHANGE_URL);
-    }
-
-    this.wsClient.on('open', () => {
-      this.sendRequest(symbol);
-    });
-
-    this.wsClient.on('message', (data: string) => {
-      const dataParsed = JSON.parse(data.toString());
-
-      if(dataParsed.action === 'error') throw new Error;
-      if(dataParsed.action === 'snapshot'){
-         this.updateTree(dataParsed);
+    try{
+      if (this.wsClient && this.wsClient.readyState === WebSocket.OPEN) {
+        this.sendRequest(symbol);
+      } else {
+        this.wsClient = new WebSocket(EXCHANGE_URL);
       }
-    });
 
-    this.wsClient.on('error', (error) => {
-      console.log('error', error);
-      this.cleanup();
-    });
+      this.wsClient.on('open', () => {
+        this.sendRequest(symbol);
+      });
 
-    this.wsClient.on('close', () => {
-      console.log(`Disconnected from Kraken ${base}/${quote}`);
+      this.wsClient.on('message', (data: string) => {
+        const dataParsed = JSON.parse(data.toString());
+
+        if(dataParsed.action === 'error') throw new Error;
+        if(dataParsed.action === 'snapshot'){
+          this.updateTree(dataParsed);
+        }
+      });
+
+      this.wsClient.on('error', (error) => {
+        console.log('error', error);
+        this.cleanup();
+      });
+
+      this.wsClient.on('close', () => {
+        console.log(`Disconnected from Bitget ${base}/${quote}`);
+        this.cleanup();
+      });
+    } catch (error) {
+      console.error(`[bitget.provider.ts] Error initializing connection: ${(error as Error).message}`);
       this.cleanup();
-    });
+    }
   }
 
   getQuote(base: string, quote: string, callback: (update: any) => void): void {
@@ -118,6 +126,9 @@ export class BitgetProvider implements IQuoteProvider {
       bids.push([node.key, node.data.volume]);
     });
     const result = {
+      exchange: EXCHANGE_NAME,
+      base,
+      quote,
       bids: bids.slice(bids.length - 10,bids.length),
       asks: asks.slice(0, 10)
     }

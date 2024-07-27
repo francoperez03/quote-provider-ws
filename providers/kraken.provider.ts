@@ -3,9 +3,10 @@ import WebSocket from 'ws';
 import Tree from "avl";
 
 const EXCHANGE_URL = 'wss://ws.kraken.com';
-const ASKS_SUFFIX = '-asks'
-const BIDS_SUFFIX = '-bids'
-const SUBSCRIBE_EVENT = 'subscribe'
+const EXCHANGE_NAME = 'kraken';
+const ASKS_SUFFIX = '-asks';
+const BIDS_SUFFIX = '-bids';
+const SUBSCRIBE_EVENT = 'subscribe';
 export class KrakenProvider implements IQuoteProvider {
 
   private wsClient: WebSocket | null = null;
@@ -18,8 +19,7 @@ export class KrakenProvider implements IQuoteProvider {
     }
   }
 
-  private baseQuoteToPair = (base: string, quote: string) => (`${base}-${quote}`)
-
+  private baseQuoteToPair = (base: string, quote: string) => (`${base}/${quote}`)
 
   private sendRequest = (symbol: string) => {
     this.wsClient!.send(JSON.stringify({
@@ -30,7 +30,7 @@ export class KrakenProvider implements IQuoteProvider {
   }
 
   private getOrCreateTree(pair: string, treeType: string) {
-    const pairKey =`${pair}${treeType}`
+    const pairKey = `${pair}${treeType}`
     if (!this.orderBooksByPair.has(pairKey)) {
       this.orderBooksByPair.set(pairKey, new Tree());
     }
@@ -45,25 +45,25 @@ export class KrakenProvider implements IQuoteProvider {
     const bids = data[1].bs
     for (const askOrder of asks) {
       const [price, volume, timestamp] = askOrder;
-      askTree.insert(parseFloat(price), {volume: parseFloat(volume), timestamp})
+      askTree.insert(parseFloat(price), { volume: parseFloat(volume), timestamp })
     }
     for (const bidOrder of bids) {
       const [price, volume, timestamp] = bidOrder;
-      bidTree.insert(parseFloat(price), {volume: parseFloat(volume), timestamp})
+      bidTree.insert(parseFloat(price), { volume: parseFloat(volume), timestamp })
     }
     return true
   }
 
   private updateTree = (base: string, quote: string, data: any) => {
     const pair = this.baseQuoteToPair(base, quote)
-    if (data.a) { 
+    if (data.a) {
       const askTree = this.getOrCreateTree(pair, ASKS_SUFFIX);
       data.a.forEach((order: any) => {
         const [price, volume, timestamp] = order;
         if (parseFloat(volume) === 0) {
           askTree.remove(parseFloat(price));
         } else {
-          if(askTree.find(parseFloat(price))) askTree.remove(parseFloat(price));
+          if (askTree.find(parseFloat(price))) askTree.remove(parseFloat(price));
           askTree.insert(parseFloat(price), { volume: parseFloat(volume), timestamp });
         }
       });
@@ -75,7 +75,7 @@ export class KrakenProvider implements IQuoteProvider {
         if (parseFloat(volume) === 0) {
           bidTree.remove(parseFloat(price));
         } else {
-          if(bidTree.find(parseFloat(price))) bidTree.remove(parseFloat(price));
+          if (bidTree.find(parseFloat(price))) bidTree.remove(parseFloat(price));
           bidTree.insert(parseFloat(price), { volume: parseFloat(volume), timestamp });
         }
       });
@@ -83,13 +83,15 @@ export class KrakenProvider implements IQuoteProvider {
   }
 
   subscribe(base: string, quote: string) {
-    if (this.wsClient && this.wsClient.readyState === WebSocket.OPEN) {
-      const symbol = `${base}/${quote}`;
-    } else {
-      this.wsClient = new WebSocket(EXCHANGE_URL);
+    const symbol = this.baseQuoteToPair(base, quote);
+    try{
+      if (this.wsClient && this.wsClient.readyState === WebSocket.OPEN) {
+        this.sendRequest(symbol);
+      } else {
+        this.wsClient = new WebSocket(EXCHANGE_URL);
+      }
 
       this.wsClient.on('open', () => {
-        const symbol = `${base}/${quote}`;
         this.sendRequest(symbol);
       });
 
@@ -97,20 +99,23 @@ export class KrakenProvider implements IQuoteProvider {
         const dataParsed = JSON.parse(data.toString());
         if (Array.isArray(dataParsed) && dataParsed[1] && dataParsed[1].as) {
           this.createTree(base, quote, dataParsed)
-        } else{
+        } else {
           this.updateTree(base, quote, dataParsed)
         }
       });
 
       this.wsClient.on('error', (error) => {
-        console.log('error', error);
+        console.log('[kraken.provider.ts] error', error);
         this.cleanup();
       });
 
       this.wsClient.on('close', () => {
-        console.log(`Disconnected from Kraken ${base}/${quote}`);
+        console.log(`[kraken.provider.ts] Disconnected from Kraken ${symbol}`);
         this.cleanup();
       });
+    } catch (error) {
+      console.error(`[kraken.provider.ts] Error initializing connection: ${(error as Error).message}`);
+      this.cleanup();
     }
   }
 
@@ -129,9 +134,13 @@ export class KrakenProvider implements IQuoteProvider {
     });
 
     const result = {
+      exchange: EXCHANGE_NAME,
+      base,
+      quote,
       bids,
       asks
     }
+    console.log(result)
     callback(result)
   }
 

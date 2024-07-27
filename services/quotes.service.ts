@@ -4,10 +4,11 @@ import { IQuoteProvider } from "../interfaces/quotes.interface";
 import { Subscriptions } from "../interfaces/subscriptions.interface";
 import { getSubscriptionKey } from "../utils/subscription";
 
-const INTERVAL_MS = 5000
+const INTERVAL_MS = 5000;
+
 @Service()
 export class QuoteService {
-  quoteProviders: { [key:string]: IQuoteProvider };
+  quoteProviders: { [key: string]: IQuoteProvider };
   subscriptions: Subscriptions;
 
   constructor(
@@ -23,7 +24,6 @@ export class QuoteService {
     this.subscriptions = {};
   }
 
-
   async subscribe(exchange: string, base: string, quote: string, client: WebSocket): Promise<string> {
     try {
       const subscriptionKey = getSubscriptionKey(exchange, base, quote);
@@ -36,28 +36,32 @@ export class QuoteService {
         };
 
         const sendUpdates = async () => {
-          const responseWriter = (response: any) => {
-            this.subscriptions[subscriptionKey].clients.forEach(ws => {
-              if (ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify(response));
-              }
-            });
+          try {
+            const responseWriter = (response: any) => {
+              this.subscriptions[subscriptionKey].clients.forEach(ws => {
+                if (ws.readyState === WebSocket.OPEN) {
+                  ws.send(JSON.stringify(response));
+                }
+              });
+            }
+            providerSelected.getQuote(base, quote, responseWriter);
+          } catch (error) {
+            console.error(`[quote.service.ts] Error sending updates: ${(error as Error).message}`);
           }
-          providerSelected.getQuote(base, quote, responseWriter);
         };
         this.subscriptions[subscriptionKey].intervalId = setInterval(sendUpdates, INTERVAL_MS);
       }
       this.subscriptions[subscriptionKey].clients.add(client);
-      providerSelected.subscribe(base, quote)
+      providerSelected.subscribe(base, quote);
       client.on('close', () => {
         this.unsubscribe(exchange, base, quote, client);
       });
 
       return subscriptionKey;
     } catch (e) {
-      const errorMessage = (e as Error).message
-      console.error({errorMessage});
-      return errorMessage;
+      const errorMessage = (e as Error).message;
+      console.error({ errorMessage });
+      return 'Subscription failed';
     }
   }
 
