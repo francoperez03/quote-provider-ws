@@ -1,7 +1,7 @@
 import { Inject, Service } from "typedi";
+import WebSocket from 'ws';
 import { IQuoteProvider } from "../interfaces/quotes.interface";
 import { Subscriptions } from "../interfaces/subscriptions.interface";
-import WebSocket from 'ws';
 import { getSubscriptionKey } from "../utils/subscription";
 
 const INTERVAL_MS = 5000
@@ -24,7 +24,7 @@ export class QuoteService {
   }
 
 
-  async subscribe(exchange: string, base: string, quote: string, client: WebSocket): Promise<string | boolean> {
+  async subscribe(exchange: string, base: string, quote: string, client: WebSocket): Promise<string> {
     try {
       const subscriptionKey = getSubscriptionKey(exchange, base, quote);
       const providerSelected: IQuoteProvider = this.quoteProviders[exchange];
@@ -50,17 +50,19 @@ export class QuoteService {
       this.subscriptions[subscriptionKey].clients.add(client);
       providerSelected.subscribe(base, quote)
       client.on('close', () => {
-        this.unsubscribe(subscriptionKey, client);
+        this.unsubscribe(exchange, base, quote, client);
       });
 
       return subscriptionKey;
     } catch (e) {
-      console.error((e as Error).message);
-      return false;
+      const errorMessage = (e as Error).message
+      console.error({errorMessage});
+      return errorMessage;
     }
   }
 
-  unsubscribe(subscriptionKey: string, client: WebSocket): void {
+  unsubscribe(exchange: string, base: string, quote: string, client: WebSocket): void {
+    const subscriptionKey = getSubscriptionKey(exchange, base, quote);
     if (this.subscriptions[subscriptionKey]) {
       this.subscriptions[subscriptionKey].clients.delete(client);
 
