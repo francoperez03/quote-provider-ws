@@ -65,15 +65,18 @@ export class QuoteService {
     }
   }
 
-  unsubscribe(exchange: string, base: string, quote: string, client: WebSocket): void {
+  unsubscribe(exchange: string, base: string, quote: string, client: WebSocket): boolean {
     const subscriptionKey = getSubscriptionKey(exchange, base, quote);
     if (this.subscriptions[subscriptionKey]) {
-      this.subscriptions[subscriptionKey].clients.delete(client);
+      const clientWasSubscribed = this.subscriptions[subscriptionKey].clients.delete(client);
 
       if (this.subscriptions[subscriptionKey].clients.size === 0) {
         clearInterval(this.subscriptions[subscriptionKey].intervalId!);
         delete this.subscriptions[subscriptionKey];
       }
+
+      return clientWasSubscribed
     }
+    return false;
   }
 }
