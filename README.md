@@ -14,14 +14,14 @@ npm install
 npm run dev
 ```
 
-El servidor WebSocket se ejecutará en ws://localhost:81.
+El servidor WebSocket se ejecutará en ws://localhost:443.
 
 ## Uso con Postman
 ### Conexión al servidor WebSocket
 Abre Postman.
 Haz clic en el botón "New" y selecciona "WebSocket Request".
-En el campo de URL, introduce localhost:80 y haz clic en "Connect".
-Suscripción a un par
+En el campo de URL, introduce localhost:443 y haz clic en "Connect".
+### Suscripción a un par
 Para suscribirte a un par, envía el siguiente mensaje en formato JSON:
 
 ```json
