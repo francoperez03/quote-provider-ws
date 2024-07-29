@@ -32,7 +32,7 @@ Para suscribirte a un par, envía el siguiente mensaje en formato JSON:
   "quote": "USDT"
 }
 ```
-Desuscripción de un par
+### Desuscripción de un par
 Para desuscribirte de un par, envía el siguiente mensaje en formato JSON:
 
 ```json
