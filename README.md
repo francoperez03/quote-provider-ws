@@ -9,7 +9,7 @@ Este proyecto es un servidor WebSocket que permite suscripciones a actualizacion
 
 ## Instalación y ejecución
 
-```json
+```plaintext
 npm install
 npm run dev
 ```
@@ -27,7 +27,7 @@ Para suscribirte a un par, envía el siguiente mensaje en formato JSON:
 ```json
 {
   "action": "subscribe",
-  "exchange": "kraken",  // o "bitget"
+  "exchange": "kraken",
   "base": "BTC",
   "quote": "USDT"
 }
@@ -38,7 +38,7 @@ Para desuscribirte de un par, envía el siguiente mensaje en formato JSON:
 ```json
 {
   "action": "unsubscribe",
-  "exchange": "kraken",  // o "bitget"
+  "exchange": "kraken",
   "base": "BTC",
   "quote": "USDT"
 }
@@ -48,26 +48,40 @@ Una vez suscrito, recibirás actualizaciones del order book en tiempo real en fo
 
 ```json
 {
-  "exchange": "kraken",
-  "base": "BTC",
-  "quote": "USDT",
-  "bids": [
-    [ 69660.83, 0.004826 ],
-    [ 69660.98, 0.004632 ],
-    ...
-  ],
-  "asks": [
-    [ 69669.04, 0.57915 ],
-    [ 69669.33, 0.033 ],
-    ...
-  ],
-
+    "exchange": "bitget",
+    "base": "BTC",
+    "quote": "USDT",
+    "bids": [
+        [69669.08, 0.028768],
+        [69669.43, 0.016731],
+        [69669.44, 0.000184],
+        [69669.45, 0.000184],
+        [69669.47, 0.000184],
+        [69669.48, 0.12],
+        [69669.78, 0.028767],
+        [69670.13, 0.029978],
+        [69670.83, 0.017942],
+        [69674.31, 0.110322]
+    ],
+    "asks": [
+        [69674.32, 0.066077],
+        [69677.46, 0.002517],
+        [69677.74, 0.003493],
+        [69677.8, 0.001438],
+        [69677.86, 0.004937],
+        [69678.85, 0.002157],
+        [69679.2, 0.011779],
+        [69679.55, 0.011779],
+        [69679.56, 0.12],
+        [69679.57, 0.007391]
+    ]
 }
 
-Tambien en log logs de la api, quedan impresos el resultado enviado
 ```
+Tambien en log logs de la api, quedan impresos el resultado enviado
+
 ## Estructura del Proyecto
-```json
+```plaintext
 quote-provider-ws
 │
 ├── services/
