@@ -48,12 +48,17 @@ Una vez suscrito, recibirás actualizaciones del order book en tiempo real en fo
 
 ```json
 {
+  "exchange": "kraken",
+  "base": "BTC",
+  "quote": "USDT",
   "bids": [
-    ["5541.30000", "2.50700000", "1534614248.456738"],
+    [ 69660.83, 0.004826 ],
+    [ 69660.98, 0.004632 ],
     ...
   ],
   "asks": [
-    ["5542.50000", "0.40100000", "1534614248.456738"],
+    [ 69669.04, 0.57915 ],
+    [ 69669.33, 0.033 ],
     ...
   ],
 
